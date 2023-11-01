@@ -17,7 +17,8 @@ int searchFiles(char ***fileList, DIR *dir, char *mainDir, char *filename, int p
 int main(int argc, char *argv[]) {
 
   if(argc < 3){
-    perror("You must pass the folder to search\n");
+    printf("You must pass the folder and file to search\n");
+    printf("The call must have 2 parameters\n");
     return EXIT_FAILURE;
   }
   
