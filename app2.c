@@ -1,3 +1,4 @@
+#include "bits/pthreadtypes.h"
 #include "mariadb/mysql.h"
 #include "mysql/mysql.h"
 #include <errno.h>
@@ -5,34 +6,67 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <threads.h>
 
 #define DIR_TYPE 4
 #define FILE_TYPE 8
 #define FILE_LINK_TYPE 10
 
+typedef struct threadArgs {
+  char ***fileList;
+  char **dir;
+} t_args;
+
+thrd_t thrd1;
 char **fileList = NULL;
 int testingMysql(void);
 int searchFiles(char ***fileList, DIR *dir, char *mainDir, char *filename, int parent_lvl);
+void SearchFilesAsync(char ***fileResult, char **args, thrd_t *thrd_t);
+int ThrdSearchFiles(void *t_args);
 
 int main(int argc, char *argv[]) {
+
 
   if(argc < 3){
     printf("You must pass the folder and file to search\n");
     printf("The call must have 2 parameters\n");
     return EXIT_FAILURE;
   }
-  
-  fileList = (char**)calloc(1,sizeof(char*));
 
-  if( searchFiles(&fileList, opendir(*(argv+1)), *(argv+1), *(argv+2), 0) == 1){
-    while(*fileList != NULL){
-      printf("%s\n", *fileList);
-      fileList++;
-    }
+  fileList = (char**)calloc(1,sizeof(char*));
+  // searchFiles(&fileList, opendir(*(argv+1)), *(argv+1), *(argv+2), 0);
+  //
+  // while(*fileList != NULL){
+  //   printf("%s\n", *fileList);
+  //   fileList++;
+  // }
+
+  SearchFilesAsync(&fileList, argv, &thrd1);
+
+  thrd_join(thrd1, NULL);
+
+  while(*fileList != NULL){
+    printf("%s\n", *fileList);
+    fileList++;
   }
 
   return EXIT_SUCCESS;
 
+}
+
+int ThrdSearchFiles(void *t_args){
+  struct threadArgs *args = (struct threadArgs*)t_args;
+
+  searchFiles(args->fileList, opendir(*(args->dir+1)), *(args->dir+1), *(args->dir+2), 0);
+
+  return 0;
+}
+
+void SearchFilesAsync(char ***filesresult, char **args, thrd_t *thrd_t){
+  struct threadArgs t_args = {.dir = args, .fileList = filesresult };
+
+  printf("Thread started\n");
+  thrd_create(&thrd1, (thrd_start_t)ThrdSearchFiles, (void*)&t_args);
 }
 
 int searchFiles(char ***fileList, DIR *dir, char *mainDir, char *filename, int parent_lvl){
